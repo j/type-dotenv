@@ -1,6 +1,6 @@
 {
   "name": "type-dotenv",
-  "version": "1.0.0-beta.2",
+  "version": "1.0.0-beta.3",
   "description": "A simple to use typed dotenv loader.",
   "keywords": [],
   "main": "dist/lib/type-dotenv.js",
