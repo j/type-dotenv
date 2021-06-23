@@ -1,6 +1,4 @@
-import { join } from 'path';
-import { parse } from 'dotenv';
-import { readFileSync } from 'fs';
+import dotenv, { DotenvConfigOptions } from 'dotenv';
 import { validate } from './validate'
 
 type ClassConstructor<T = any> = { new(): T };
@@ -17,6 +15,7 @@ export interface EnvironmentMetadata {
   config: EnvVarConfig;
 }
 
+const variables = new Map<string, ClassConstructor>();
 export const metadata = new Map<ClassConstructor, EnvironmentMetadata[]>();
 export const loaded = new Map<ClassConstructor, any>();
 
@@ -34,6 +33,12 @@ export function IsNumber(config: Omit<EnvVarConfig, 'type'> = {}): PropertyDecor
 
 export function EnvVar(config: EnvVarConfig): PropertyDecorator {
   return function (target: any, property: string | symbol): void {
+    if (variables.has(property as string)) {
+      throw new Error(`Property "${property as string}" in "${target.constructor.name}" already exists in class "${variables.get(property as string).name}"`);
+    }
+
+    variables.set(property as string, target.constructor);
+
     if (!metadata.has(target.constructor)) {
       metadata.set(target.constructor, []);
     }
@@ -49,19 +54,14 @@ export function EnvVar(config: EnvVarConfig): PropertyDecorator {
   };
 }
 
-export interface LoadConfig {
-  envPath: string;
-  envFile: string;
+export function config(options: DotenvConfigOptions): void {
+  loaded.clear();
+  dotenv.config(options);
 }
 
-const defaultConfig: LoadConfig = {
-  envPath: process.cwd(),
-  envFile: `.env.${process.env.NODE_ENV || 'development'}`
-};
-
-export function load<T = any>(Target: ClassConstructor<T>, conf: Partial<LoadConfig> = {}): T {
+export function load<T = any>(Target: ClassConstructor<T>): T {
   if (loaded.has(Target)) {
-    throw new Error(`Already loaded .env for target "${Target.name}".  Use "get(Target)".`);
+    return loaded.get(Target);
   }
 
   const meta = metadata.get(Target);
@@ -69,41 +69,18 @@ export function load<T = any>(Target: ClassConstructor<T>, conf: Partial<LoadCon
     throw new Error(`"${Target.name}" does not have any decorated properties`);
   }
 
-  const c: LoadConfig = {
-    ...defaultConfig,
-    ...conf
-  };
-
-  const parsed = parse(readFileSync(join(c.envPath, c.envFile), { encoding: 'utf-8' }).toString());
-
   const target = new Target();
 
   meta.forEach((meta) => {
     const { property } = meta;
 
-    const value: any = validate(
+    (target as any)[property] = validate(
       meta,
-      process.env[property] || parsed[property] || (target as any)[property]
+      process.env[property] || (target as any)[property]
     );
-
-    // sets the raw ENV variable within `process.env`
-    if (process.env.NODE_ENV !== 'test') {
-      /* istanbul ignore next */
-      process.env[property] = value;
-    }
-
-    (target as any)[property] = value;
   });
 
   loaded.set(Target, target);
 
   return target;
-}
-
-export function get<T = any>(Target: ClassConstructor<T>, conf: Partial<LoadConfig> = {}): T {
-  if (!loaded.has(Target)) {
-    throw new Error(`Environment not loaded for "${Target.name}".  Use "load(Target)".`);
-  }
-
-  return loaded.get(Target);
 }

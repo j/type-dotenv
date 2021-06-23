@@ -5,7 +5,8 @@ An extremely simple typed dotenv loader.
 ### Usage
 
 ```typescript
-import { load, IsBoolean, IsString, IsNumber } from 'type-dotenv';
+import { join } from 'path';
+import { config, load, IsBoolean, IsString, IsNumber } from 'type-dotenv';
 
 class Environment {
   @IsString()
@@ -25,14 +26,12 @@ class Environment {
   ANALYTICS_KEY?: string;
 }
 
-export const env = load(Environment);
-
-// or with config (these are defaults)
-
-export const env = load(Environment, {
-    envPath: process.cwd(),
-    envFile: `.env.${process.env.NODE_ENV || 'development'}`
+// Same opts as `dotenv` package.
+config({
+  path: join(process.cwd(), '.env.development')
 });
+
+export const env = load(Environment);
 
 console.log(env instanceof Environment) // true
 ```

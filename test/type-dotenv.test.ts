@@ -1,4 +1,5 @@
-import { load, loaded, IsString, IsNumber, IsBoolean, get } from '../src/type-dotenv'
+import { config, load, loaded, IsString, IsNumber, IsBoolean } from '../src/type-dotenv'
+import * as path from 'path'
 
 const originalEnvVariables = {
   ...process.env
@@ -39,16 +40,32 @@ class Environment {
   BOOLEAN_AS_0?: boolean;
 }
 
+class DatabaseEnvironment {
+  @IsString()
+  DATABASE: string;
+
+  @IsString()
+  PASSWORD: string;
+}
+
 /**
  * Dummy test
  */
 describe("dotenv test", () => {
   afterEach(() => {
     loaded.clear();
-    process.env = originalEnvVariables;
+
+    Object.keys(process.env).forEach(key => {
+      delete process.env[key];
+    });
+
+    Object.keys(originalEnvVariables).forEach(key => {
+      (process.env as any)[key] = originalEnvVariables;
+    });
   });
 
   it("parses default .env.test file", () => {
+    config({ path: path.join(process.cwd(), '.env.test') });
     const env = load(Environment);
 
     expect(env).toBeInstanceOf(Environment);
@@ -63,17 +80,24 @@ describe("dotenv test", () => {
     expect(env.BOOLEAN_AS_1).toBe(true);
     expect(env.BOOLEAN_AS_FALSE).toBe(false);
     expect(env.BOOLEAN_AS_0).toBe(false);
+
+    const database = load(DatabaseEnvironment);
+    expect(database).toBeInstanceOf(DatabaseEnvironment);
+    expect(database.DATABASE).toBe('some_database');
+    expect(database.PASSWORD).toBe('some_password');
   });
 
   it("gets a loaded environment", () => {
+    config({ path: path.join(process.cwd(), '.env.test') });
     const env = load(Environment);
-
-    expect(env).toBe(get(Environment));
+    expect(env).toBeInstanceOf(Environment);
   });
 
   it("errors with invalid number", () => {
     expect(() => {
-      load(Environment, { envPath: __dirname, envFile: '.env.invalid_number' });
+      loaded.clear();
+      config({ path: path.join(__dirname, '.env.invalid_number') });
+      console.log(load(Environment));
     }).toThrow('Environment variable "NUMBER" is not a number')
   });
 
@@ -81,20 +105,18 @@ describe("dotenv test", () => {
     class SomeEnvironment {}
 
     expect(() => {
+      config({ path: path.join(process.cwd(), '.env.test') });
       load(SomeEnvironment);
     }).toThrow('"SomeEnvironment" does not have any decorated properties')
   });
 
-  it("errors when loading environment more than once", () => {
+  it("errors when two environments share the same key", () => {
     expect(() => {
-      load(Environment);
-      load(Environment);
-    }).toThrow('Already loaded .env for target "Environment".  Use "get(Target)".')
-  });
-
-  it("errors when getting unloaded environment", () => {
-    expect(() => {
-      get(Environment);
-    }).toThrow('Environment not loaded for "Environment".  Use "load(Target)".')
+      class StringAlreadyExists {
+        @IsString()
+        STRING: string;
+      }
+      load(StringAlreadyExists);
+    }).toThrow('Property "STRING" in "StringAlreadyExists" already exists in class "Environment"');
   });
 })
