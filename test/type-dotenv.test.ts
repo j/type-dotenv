@@ -38,6 +38,18 @@ class Environment {
 
   @IsBoolean()
   BOOLEAN_AS_0?: boolean;
+
+  @IsString()
+  stringRenamed: string;
+
+  @IsString()
+  stringRenamedWithDefault: string = 'string renamed default';
+
+  @IsString()
+  string_with_underscore: string;
+
+  @IsNumber()
+  numberRenamed: number;
 }
 
 class DatabaseEnvironment {
@@ -80,6 +92,11 @@ describe("dotenv test", () => {
     expect(env.BOOLEAN_AS_1).toBe(true);
     expect(env.BOOLEAN_AS_FALSE).toBe(false);
     expect(env.BOOLEAN_AS_0).toBe(false);
+
+    expect(env.numberRenamed).toBe(123);
+    expect(env.stringRenamed).toBe('string renamed');
+    expect(env.stringRenamedWithDefault).toBe('string renamed default');
+    expect(env.string_with_underscore).toBe('STRING WITH UNDERSCORE');
 
     const database = load(DatabaseEnvironment);
     expect(database).toBeInstanceOf(DatabaseEnvironment);

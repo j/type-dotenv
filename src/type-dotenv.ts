@@ -19,15 +19,15 @@ const variables = new Map<string, ClassConstructor>();
 export const metadata = new Map<ClassConstructor, EnvironmentMetadata[]>();
 export const loaded = new Map<ClassConstructor, any>();
 
-export function IsString(config: Omit<EnvVarConfig, 'type'> = {}): PropertyDecorator {
+export function IsString(config: Omit<Partial<EnvVarConfig>, 'type'> = {}): PropertyDecorator {
   return EnvVar({ ...config, type: 'string' });
 }
 
-export function IsBoolean(config: Omit<EnvVarConfig, 'type'> = {}): PropertyDecorator {
+export function IsBoolean(config: Omit<Partial<EnvVarConfig>, 'type'> = {}): PropertyDecorator {
   return EnvVar({ ...config, type: 'boolean' });
 }
 
-export function IsNumber(config: Omit<EnvVarConfig, 'type'> = {}): PropertyDecorator {
+export function IsNumber(config: Omit<Partial<EnvVarConfig>, 'type'> = {}): PropertyDecorator {
   return EnvVar({ ...config, type: 'number' });
 }
 
@@ -59,7 +59,21 @@ export function config(options: DotenvConfigOptions): void {
   dotenv.config(options);
 }
 
-export function load<T = any>(Target: ClassConstructor<T>): T {
+export type PropertyNamingStrategy = (property: string) => string;
+
+export interface LoadOptions {
+  propertyNamingStrategy?: PropertyNamingStrategy;
+}
+
+// try converting property from someCase to SOME_CASE
+export const snakeCaseStrategy: PropertyNamingStrategy = (property: string): string => {
+  return property.replace(/\W+/g, " ")
+    .split(/ |\B(?=[A-Z])/)
+    .map(part => part.toUpperCase())
+    .join('_');
+};
+
+export function load<T = any>(Target: ClassConstructor<T>, options: LoadOptions = {}): T {
   if (loaded.has(Target)) {
     return loaded.get(Target);
   }
@@ -71,12 +85,14 @@ export function load<T = any>(Target: ClassConstructor<T>): T {
 
   const target = new Target();
 
+  const propertyNamingStrategy = options.propertyNamingStrategy || snakeCaseStrategy;
+
   meta.forEach((meta) => {
     const { property } = meta;
 
     (target as any)[property] = validate(
       meta,
-      process.env[property] || (target as any)[property]
+      process.env[property] ?? process.env[propertyNamingStrategy(property)] ?? (target as any)[property]
     );
   });
 
