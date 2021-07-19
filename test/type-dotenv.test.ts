@@ -1,4 +1,4 @@
-import { config, load, loaded, IsString, IsNumber, IsBoolean } from '../src/type-dotenv';
+import { config, load, loaded, IsString, IsBoolean, IsNumber, Env } from '../src/type-dotenv';
 import * as path from 'path';
 
 const originalEnvVariables = {
@@ -6,8 +6,11 @@ const originalEnvVariables = {
 };
 
 class Environment {
-  @IsString()
+  @Env()
   NODE_ENV!: string;
+
+  @Env({ env: 'NODE_ENV' })
+  env!: string;
 
   @IsString()
   STRING!: string;
@@ -15,48 +18,51 @@ class Environment {
   @IsNumber()
   NUMBER!: number;
 
-  @IsString()
+  @Env()
   STRING_WITH_DEFAULT: string = 'default';
 
-  @IsNumber()
+  @Env()
   NUMBER_WITH_DEFAULT: number = 12345;
 
-  @IsString({ required: false })
+  @Env({ required: false })
   OPTIONAL_STRING?: string;
 
-  @IsNumber({ required: false })
+  @Env({ required: false })
   OPTIONAL_NUMBER?: number;
 
-  @IsBoolean()
+  @Env()
   BOOLEAN_AS_TRUE?: boolean;
 
-  @IsBoolean()
+  @Env()
   BOOLEAN_AS_1?: boolean;
 
   @IsBoolean()
   BOOLEAN_AS_FALSE?: boolean;
 
-  @IsBoolean()
+  @Env()
   BOOLEAN_AS_0?: boolean;
 
-  @IsString()
+  @Env()
   stringRenamed: string;
 
-  @IsString()
+  @Env()
   stringRenamedWithDefault: string = 'string renamed default';
 
-  @IsString()
+  @Env()
   string_with_underscore: string;
 
-  @IsNumber()
+  @Env()
   numberRenamed: number;
+
+  @Env()
+  stringRenamedFallback: string;
 }
 
 class DatabaseEnvironment {
   @IsString()
   DATABASE: string;
 
-  @IsString()
+  @Env()
   PASSWORD: string;
 }
 
@@ -82,6 +88,7 @@ describe('dotenv test', () => {
 
     expect(env).toBeInstanceOf(Environment);
     expect(env.NODE_ENV).toBe('test');
+    expect(env.env).toBe('test');
     expect(env.STRING).toBe('i am a string');
     expect(env.NUMBER).toBe(1337);
     expect(env.STRING_WITH_DEFAULT).toBe('default');
@@ -92,7 +99,6 @@ describe('dotenv test', () => {
     expect(env.BOOLEAN_AS_1).toBe(true);
     expect(env.BOOLEAN_AS_FALSE).toBe(false);
     expect(env.BOOLEAN_AS_0).toBe(false);
-
     expect(env.numberRenamed).toBe(123);
     expect(env.stringRenamed).toBe('string renamed');
     expect(env.stringRenamedWithDefault).toBe('string renamed default');
@@ -130,10 +136,20 @@ describe('dotenv test', () => {
   it('errors when two environments share the same key', () => {
     expect(() => {
       class StringAlreadyExists {
-        @IsString()
+        @Env()
         STRING: string;
       }
       load(StringAlreadyExists);
     }).toThrow('Property "STRING" in "StringAlreadyExists" already exists in class "Environment"');
+  });
+
+  it('errors with unsupported types', () => {
+    expect(() => {
+      class InvalidEnvironment {
+        @Env()
+        someDate: Date;
+      }
+      load(InvalidEnvironment);
+    }).toThrow('Unsupported property type "Date" for "someDate"');
   });
 });

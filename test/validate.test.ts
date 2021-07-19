@@ -1,5 +1,5 @@
 import { validate } from '../src/validate';
-import { EnvironmentMetadata } from '../src/type-dotenv';
+import { EnvironmentMetadata, snakeCaseStrategy } from '../src/type-dotenv';
 
 interface TestSubject {
   meta: EnvironmentMetadata;
@@ -89,7 +89,7 @@ describe('validate test', () => {
           required: true
         }
       },
-      throwsError: 'Environment variable "property" is not defined'
+      throwsError: 'Environment variable "PROPERTY" is not defined'
     },
     {
       meta: {
@@ -99,7 +99,7 @@ describe('validate test', () => {
         }
       },
       value: 'asdf',
-      throwsError: 'Environment variable "property" is not a number'
+      throwsError: 'Environment variable "PROPERTY" is not a number'
     },
     {
       meta: {
@@ -109,7 +109,7 @@ describe('validate test', () => {
         }
       },
       value: 'asdf',
-      throwsError: 'Environment variable "property" is not a boolean'
+      throwsError: 'Environment variable "PROPERTY" is not a boolean'
     }
   ] as TestSubject[]).forEach(t => {
     const expected = t.throwsError ? 'to throw error' : `to return "${t.result}"`;
@@ -119,9 +119,11 @@ describe('validate test', () => {
 
     it(name, () => {
       if (t.throwsError) {
-        expect(() => validate(t.meta, t.value)).toThrowError(t.throwsError);
+        expect(() => validate(t.meta, snakeCaseStrategy(t.meta.property), t.value)).toThrowError(
+          t.throwsError
+        );
       } else {
-        expect(validate(t.meta, t.value)).toBe(t.result);
+        expect(validate(t.meta, snakeCaseStrategy(t.meta.property), t.value)).toBe(t.result);
       }
     });
   });

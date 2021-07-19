@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import dotenv, { DotenvConfigOptions } from 'dotenv';
 import { validate } from './validate';
 
@@ -6,7 +7,8 @@ type ClassConstructor<T = any> = { new (): T };
 export type EnvVarType = 'string' | 'number' | 'boolean';
 
 export interface EnvVarConfig {
-  type: EnvVarType;
+  type?: EnvVarType;
+  env?: string;
   required?: boolean;
 }
 
@@ -20,19 +22,37 @@ export const metadata = new Map<ClassConstructor, EnvironmentMetadata[]>();
 export const loaded = new Map<ClassConstructor, any>();
 
 export function IsString(config: Omit<Partial<EnvVarConfig>, 'type'> = {}): PropertyDecorator {
-  return EnvVar({ ...config, type: 'string' });
+  return Env({ ...config, type: 'string' });
 }
 
 export function IsBoolean(config: Omit<Partial<EnvVarConfig>, 'type'> = {}): PropertyDecorator {
-  return EnvVar({ ...config, type: 'boolean' });
+  return Env({ ...config, type: 'boolean' });
 }
 
 export function IsNumber(config: Omit<Partial<EnvVarConfig>, 'type'> = {}): PropertyDecorator {
-  return EnvVar({ ...config, type: 'number' });
+  return Env({ ...config, type: 'number' });
 }
 
-export function EnvVar(config: EnvVarConfig): PropertyDecorator {
+export function Env(config: EnvVarConfig = {}): PropertyDecorator {
   return function(target: any, property: string | symbol): void {
+    if (!config.type) {
+      const { name } = Reflect.getMetadata('design:type', target, property);
+
+      switch (name) {
+        case 'String':
+          config.type = 'string';
+          break;
+        case 'Number':
+          config.type = 'number';
+          break;
+        case 'Boolean':
+          config.type = 'boolean';
+          break;
+        default:
+          throw new Error(`Unsupported property type "${name}" for "${property as string}"`);
+      }
+    }
+
     if (variables.has(property as string)) {
       throw new Error(
         `Property "${property as string}" in "${
@@ -57,6 +77,8 @@ export function EnvVar(config: EnvVarConfig): PropertyDecorator {
     });
   };
 }
+
+export const EnvVar = Env;
 
 export function config(options: DotenvConfigOptions): void {
   loaded.clear();
@@ -94,12 +116,25 @@ export function load<T = any>(Target: ClassConstructor<T>, options: LoadOptions 
 
   meta.forEach(meta => {
     const { property } = meta;
-    (target as any)[property] = validate(
-      meta,
-      process.env[property] ??
-        process.env[propertyNamingStrategy(property)] ??
-        (target as any)[property]
-    );
+    const env = meta.config.env || propertyNamingStrategy(property);
+
+    let envKey: string;
+    let value;
+
+    // attempt to get env from naming strategy generated key, then property key,
+    // then fall back with default property value
+    if (typeof process.env[env] !== 'undefined') {
+      value = process.env[env];
+      envKey = env;
+    } else if (typeof process.env[property] !== 'undefined') {
+      value = process.env[property];
+      envKey = property;
+    } else {
+      value = (target as any)[property];
+      envKey = property === env ? property : `"${property}" or "${env}"`;
+    }
+
+    (target as any)[property] = validate(meta, envKey, value);
   });
 
   loaded.set(Target, target);

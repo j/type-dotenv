@@ -1,14 +1,15 @@
 import { EnvironmentMetadata } from './type-dotenv';
 
-function throwError(meta: EnvironmentMetadata) {
-  throw new Error(`Environment variable "${meta.property}" is not a ${meta.config.type}`);
+function throwError(meta: EnvironmentMetadata, envKey: string) {
+  throw new Error(`Environment variable "${envKey}" is not a ${meta.config.type}`);
 }
 
 export function validate(
   meta: EnvironmentMetadata,
+  envKey: string,
   value: string
 ): undefined | string | number | boolean {
-  const { config, property } = meta;
+  const { config } = meta;
   const { required, type } = {
     required: true,
     ...config
@@ -16,7 +17,7 @@ export function validate(
 
   if (typeof value === 'undefined') {
     if (required) {
-      throw new Error(`Environment variable "${property}" is not defined`);
+      throw new Error(`Environment variable "${envKey}" is not defined`);
     }
 
     return undefined;
@@ -30,7 +31,7 @@ export function validate(
       const transformed = +value;
 
       if (Number.isNaN(transformed)) {
-        throwError(meta);
+        throwError(meta, envKey);
       }
 
       return transformed;
@@ -40,7 +41,7 @@ export function validate(
 
       // valid boolean values
       if (!['true', '1', 'false', '0'].includes(value)) {
-        throwError(meta);
+        throwError(meta, envKey);
       }
 
       return value === 'true' || value === '1';
