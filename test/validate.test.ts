@@ -1,15 +1,15 @@
-import { validate } from '../src/validate'
-import { EnvironmentMetadata } from '../src/type-dotenv'
+import { validate } from '../src/validate';
+import { EnvironmentMetadata } from '../src/type-dotenv';
 
 interface TestSubject {
-  meta: EnvironmentMetadata
-  value: string
-  result?: any
-  throwsError?: string
+  meta: EnvironmentMetadata;
+  value: string;
+  result?: any;
+  throwsError?: string;
 }
 
 describe('validate test', () => {
-  ;([
+  ([
     {
       meta: {
         property: 'property',
@@ -112,17 +112,17 @@ describe('validate test', () => {
       throwsError: 'Environment variable "property" is not a boolean'
     }
   ] as TestSubject[]).forEach(t => {
-    const expected = t.throwsError ? 'to throw error' : `to return "${t.result}"`
+    const expected = t.throwsError ? 'to throw error' : `to return "${t.result}"`;
     const name = `Expects "${t.meta.property}" ${expected} with config "${JSON.stringify(
       t.meta.config
-    )}"`
+    )}"`;
 
     it(name, () => {
       if (t.throwsError) {
-        expect(() => validate(t.meta, t.value)).toThrowError(t.throwsError)
+        expect(() => validate(t.meta, t.value)).toThrowError(t.throwsError);
       } else {
-        expect(validate(t.meta, t.value)).toBe(t.result)
+        expect(validate(t.meta, t.value)).toBe(t.result);
       }
-    })
-  })
-})
+    });
+  });
+});
