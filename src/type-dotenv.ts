@@ -131,7 +131,7 @@ export function load<T = any>(Target: ClassConstructor<T>, options: LoadOptions 
       envKey = property;
     } else {
       value = (target as any)[property];
-      envKey = property === env ? property : `"${property}" or "${env}"`;
+      envKey = property === env ? property : `${property}" or "${env}`;
     }
 
     (target as any)[property] = validate(meta, envKey, value);
